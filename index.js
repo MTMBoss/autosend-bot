@@ -31,7 +31,7 @@ client.once("clientReady", () => {
 
   // ogni giovedì alle 08:00 (ORA ITALIANA)
   cron.schedule(
-    "0 12 * * 1",
+    "10 12 * * 1",
     async () => {
       try {
         console.log("📅 Invio training schedule");
