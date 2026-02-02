@@ -29,9 +29,9 @@ client.once("clientReady", () => {
      📅 TRAINING SCHEDULE
   =========================== */
 
-  // ogni giovedì alle 08:00 (ORA ITALIANA)
+  // OGNI LUNEDÌ alle 12:20 (ora italiana)
   cron.schedule(
-    "20 12 * * 1",
+    "40 12 * * 1",
     async () => {
       try {
         console.log("📅 Invio training schedule");
@@ -40,11 +40,10 @@ client.once("clientReady", () => {
         if (!channel) return;
 
         const giorni = ["LUN", "MAR", "MER", "GIO", "VEN", "SAB", "DOM"];
-
         const today = new Date();
 
-        // calcola SEMPRE il lunedì della settimana successiva
-        const day = today.getDay(); // 0=dom, 4=gio
+        // calcola il lunedì della settimana SUCCESSIVA
+        const day = today.getDay(); // 0=dom
         const daysUntilNextMonday = ((8 - day) % 7) + 7;
 
         const nextMonday = new Date(today);
@@ -69,16 +68,20 @@ client.once("clientReady", () => {
           )} - ${formatDate(weekDates[6])}**`
         );
 
-        // 7 messaggi
+        // 7 messaggi + reazioni
         for (let i = 0; i < 7; i++) {
-          await channel.send(
+          const msg = await channel.send(
             `> **__${giorni[i]} ${formatDate(
               weekDates[i]
             )}__**:\n> 9:00 PM, 10:00 PM, 11:00 PM`
           );
+
+          await msg.react("1️⃣");
+          await msg.react("2️⃣");
+          await msg.react("3️⃣");
         }
 
-        console.log("✅ Training schedule inviato");
+        console.log("✅ Training schedule inviato con reazioni");
       } catch (err) {
         console.error("❌ Errore training schedule:", err);
       }
@@ -139,7 +142,7 @@ client.on("channelCreate", async (channel) => {
 `;
 
     await channel.send(message);
-    console.log("🎫 Ticket trial gestito");
+    console.log("🎫 Ticket trial creato e messaggio inviato");
   } catch (err) {
     console.error("❌ Errore ticket:", err);
   }
