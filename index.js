@@ -5,7 +5,7 @@ const {
   PermissionsBitField
 } = require("discord.js");
 
-const STAFF_ROLE_ID = "1459593748135542946";
+const STAFF_ROLE_ID = "1420070654140481657";
 const TRIAL_CATEGORY_ID = "1459121470058922101";
 
 const client = new Client({
@@ -46,7 +46,9 @@ client.on("channelCreate", async (channel) => {
     console.log(`✏️ Canale rinominato in ticket-${username}`);
 
     const message = `
-**Compila questo form per richiedere un provino ed entrare nel clan competitive Evergreen** <@&1420070654140481657>
+👤 Utente: <@${openerId}>
+🛠 Staff: <@&${STAFF_ROLE_ID}>
+**Compila questo form per richiedere un provino ed entrare nel clan competitive Evergreen**
 
 ≫ **Nome:**
 ≫ **Età:**
@@ -62,9 +64,6 @@ client.on("channelCreate", async (channel) => {
 ≫ **Con che dispositivo/i giochi?**
 ≫ **Quanto siete disponibili?**
 ≫ **Screen profilo:**
-
-👤 Utente: <@${openerId}>
-🛠 Staff: <@&${STAFF_ROLE_ID}>
 `;
 
     await channel.send(message);
