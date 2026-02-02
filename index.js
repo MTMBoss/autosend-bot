@@ -1,10 +1,12 @@
-require("dotenv").config();
 const {
   Client,
   GatewayIntentBits,
   ChannelType,
   PermissionsBitField
 } = require("discord.js");
+
+const STAFF_ROLE_ID = "1459593748135542946";
+const TRIAL_CATEGORY_ID = "1459121470058922101";
 
 const client = new Client({
   intents: [
@@ -13,37 +15,20 @@ const client = new Client({
   ]
 });
 
-/* ===== CONFIG ===== */
-
-// ID ruolo "Capo del Reame"
-const CAPO_REAME_ROLE_ID = "1459593748135542946";
-
-// ID categoria dove Ticket Tool crea i ticket
-const TICKET_CATEGORY_ID = "1459121470058922101";
-
-// parola chiave per riconoscere i ticket trial
-const TRIAL_KEYWORD = "trial";
-
-/* ================== */
-
-client.once("ready", () => {
+client.once("clientReady", () => {
   console.log(`✅ Bot online come ${client.user.tag}`);
 });
 
 client.on("channelCreate", async (channel) => {
   try {
-    // solo canali testuali
     if (channel.type !== ChannelType.GuildText) return;
+    if (channel.parentId !== TRIAL_CATEGORY_ID) return;
+    if (!channel.name.toLowerCase().includes("ticket")) return;
 
-    // solo nella categoria ticket
-    if (channel.parentId !== TICKET_CATEGORY_ID) return;
+    console.log(`🎫 Ticket creato: ${channel.name}`);
 
-    // solo ticket trial
-    if (!channel.name.toLowerCase().includes(TRIAL_KEYWORD)) return;
-
-    // trova l'utente che ha aperto il ticket
     const openerOverwrite = channel.permissionOverwrites.cache.find(
-      p =>
+      (p) =>
         p.type === 1 &&
         p.allow.has(PermissionsBitField.Flags.ViewChannel)
     );
@@ -51,21 +36,17 @@ client.on("channelCreate", async (channel) => {
     if (!openerOverwrite) return;
 
     const openerId = openerOverwrite.id;
-    const openerMember = await channel.guild.members.fetch(openerId);
+    const member = await channel.guild.members.fetch(openerId);
 
-    // rinomina il canale → ticket-nomeutente
-    const newChannelName = `ticket-${openerMember.user.username}`
+    const username = member.user.username
       .toLowerCase()
-      .replace(/[^a-z0-9-]/g, "");
+      .replace(/[^a-z0-9]/g, "");
 
-    await channel.setName(newChannelName);
+    await channel.setName(`ticket-${username}`);
+    console.log(`✏️ Canale rinominato in ticket-${username}`);
 
-    // messaggio automatico (FORMATO COME RICHIESTO)
     const message = `
-<@&${CAPO_REAME_ROLE_ID}>
-👤 **Utente:** <@${openerId}>
-
-**Compila questo form per richiedere un provino ed entrare nel clan competitive Evergreen**
+**Compila questo form per richiedere un provino ed entrare nel clan competitive Evergreen** <@&1420070654140481657>
 
 ≫ **Nome:**
 ≫ **Età:**
@@ -81,13 +62,13 @@ client.on("channelCreate", async (channel) => {
 ≫ **Con che dispositivo/i giochi?**
 ≫ **Quanto siete disponibili?**
 ≫ **Screen profilo:**
+
+👤 Utente: <@${openerId}>
+🛠 Staff: <@&${STAFF_ROLE_ID}>
 `;
 
     await channel.send(message);
-
-    console.log(
-      `🎫 Ticket trial creato da ${openerMember.user.tag} (${newChannelName})`
-    );
+    console.log("✅ Messaggio trial inviato");
   } catch (err) {
     console.error("❌ Errore ticket trial:", err);
   }
