@@ -16,7 +16,7 @@ const client = new Client({
 /* ===== CONFIG ===== */
 
 // ID ruolo "Capo del Reame"
-const CAPO_REAME_ROLE_ID = "1420070654140481657";
+const CAPO_REAME_ROLE_ID = "1459593748135542946";
 
 // ID categoria dove Ticket Tool crea i ticket
 const TICKET_CATEGORY_ID = "1459121470058922101";
