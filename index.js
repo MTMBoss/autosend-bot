@@ -1,5 +1,10 @@
 require("dotenv").config();
-const { Client, GatewayIntentBits, ChannelType, PermissionsBitField } = require("discord.js");
+const {
+  Client,
+  GatewayIntentBits,
+  ChannelType,
+  PermissionsBitField
+} = require("discord.js");
 const cron = require("node-cron");
 const servers = require("./config/servers");
 
@@ -13,7 +18,7 @@ const client = new Client({
 client.once("clientReady", () => {
   console.log(`✅ Bot online come ${client.user.tag}`);
 
-  // TRAINING → SOLO SERVER 1
+  // TRAINING → solo server che lo richiedono
   Object.entries(servers).forEach(([guildId, cfg]) => {
     if (!cfg.sendTraining) return;
 
@@ -31,22 +36,22 @@ client.once("clientReady", () => {
         const nextMonday = new Date(today);
         nextMonday.setDate(today.getDate() + daysUntilNextMonday);
 
-        const weekDates = Array.from({ length: 7 }, (_, i) => {
+        const week = Array.from({ length: 7 }, (_, i) => {
           const d = new Date(nextMonday);
           d.setDate(nextMonday.getDate() + i);
           return d;
         });
 
-        const format = d =>
+        const f = d =>
           `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
 
         await channel.send(
-          `## **TRAINING SCHEDULE ${format(weekDates[0])} - ${format(weekDates[6])}**`
+          `## **TRAINING SCHEDULE ${f(week[0])} - ${f(week[6])}**`
         );
 
         for (let i = 0; i < 7; i++) {
           const msg = await channel.send(
-            `> **__${giorni[i]} ${format(weekDates[i])}__**:\n> 9:00 PM, 10:00 PM, 11:00 PM`
+            `> **__${giorni[i]} ${f(week[i])}__**:\n> 9:00 PM, 10:00 PM, 11:00 PM`
           );
           await msg.react("1️⃣");
           await msg.react("2️⃣");
@@ -54,8 +59,8 @@ client.once("clientReady", () => {
         }
 
         console.log(`📅 Training inviato in ${cfg.name}`);
-      } catch (err) {
-        console.error("❌ Training error:", err);
+      } catch (e) {
+        console.error("❌ Training error:", e);
       }
     }, { timezone: "Europe/Rome" });
   });
@@ -71,16 +76,15 @@ client.on("channelCreate", async (channel) => {
 
     if (channel.parentId !== cfg.trialCategoryId) return;
 
-    const name = channel.name.toLowerCase();
-    if (!cfg.triggerWords.some(w => name.includes(w))) return;
-
     const opener = channel.permissionOverwrites.cache.find(
       p => p.type === 1 && p.allow.has(PermissionsBitField.Flags.ViewChannel)
     );
     if (!opener) return;
 
     const member = await channel.guild.members.fetch(opener.id);
-    const username = member.user.username.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const username = member.user.username
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
 
     await channel.setName(`ticket-${username}`);
 
@@ -90,9 +94,9 @@ client.on("channelCreate", async (channel) => {
 
     await channel.send(msg);
 
-    console.log(`🎫 Ticket creato in ${cfg.name}`);
-  } catch (err) {
-    console.error("❌ Ticket error:", err);
+    console.log(`🎫 Ticket ${cfg.ticketTitle} creato in ${cfg.name}`);
+  } catch (e) {
+    console.error("❌ Ticket error:", e);
   }
 });
 
