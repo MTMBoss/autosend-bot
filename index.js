@@ -1,10 +1,28 @@
-require("dotenv").config();
+// ================= WEB SERVER (Replit keep-alive) =================
+const express = require("express");
+const app = express();
+
+app.get("/", (req, res) => {
+  res.send("Bot online 🚀");
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log("🌐 Web server attivo");
+});
+
+// ================= DISCORD BOT =================
+if (!process.env.REPL_ID) {
+  require("dotenv").config();
+}
+
 const {
   Client,
   GatewayIntentBits,
   ChannelType,
   PermissionsBitField
 } = require("discord.js");
+
 const cron = require("node-cron");
 const servers = require("./config/servers");
 
@@ -15,6 +33,7 @@ const client = new Client({
   ]
 });
 
+// ================= READY =================
 client.once("clientReady", () => {
   console.log(`✅ Bot online come ${client.user.tag}`);
 
@@ -22,62 +41,69 @@ client.once("clientReady", () => {
   Object.entries(servers).forEach(([guildId, cfg]) => {
     if (!cfg.sendTraining) return;
 
-    cron.schedule("0 8 * * 5", async () => {
-      try {
-        const guild = await client.guilds.fetch(guildId);
-        const channel = await guild.channels.fetch(cfg.trainingChannelId);
-        if (!channel) return;
+    cron.schedule(
+      "0 8 * * 5",
+      async () => {
+        try {
+          const guild = await client.guilds.fetch(guildId);
+          const channel = await guild.channels.fetch(cfg.trainingChannelId);
+          if (!channel) return;
 
-        const giorni = ["LUN", "MAR", "MER", "GIO", "VEN", "SAB", "DOM"];
-        const today = new Date();
-        const day = today.getDay();
-        const daysUntilNextMonday = ((8 - day) % 7) + 7;
+          const giorni = ["LUN", "MAR", "MER", "GIO", "VEN", "SAB", "DOM"];
+          const today = new Date();
+          const day = today.getDay();
+          const daysUntilNextMonday = ((8 - day) % 7) + 7;
 
-        const nextMonday = new Date(today);
-        nextMonday.setDate(today.getDate() + daysUntilNextMonday);
+          const nextMonday = new Date(today);
+          nextMonday.setDate(today.getDate() + daysUntilNextMonday);
 
-        const week = Array.from({ length: 7 }, (_, i) => {
-          const d = new Date(nextMonday);
-          d.setDate(nextMonday.getDate() + i);
-          return d;
-        });
+          const week = Array.from({ length: 7 }, (_, i) => {
+            const d = new Date(nextMonday);
+            d.setDate(nextMonday.getDate() + i);
+            return d;
+          });
 
-        const f = d =>
-          `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+          const f = d =>
+            `${String(d.getDate()).padStart(2, "0")}/${String(
+              d.getMonth() + 1
+            ).padStart(2, "0")}`;
 
-        await channel.send(
-          `## **TRAINING SCHEDULE ${f(week[0])} - ${f(week[6])}**`
-        );
-
-        for (let i = 0; i < 7; i++) {
-          const msg = await channel.send(
-            `> **__${giorni[i]} ${f(week[i])}__**:\n> 9:00 PM, 10:00 PM, 11:00 PM`
+          await channel.send(
+            `## **TRAINING SCHEDULE ${f(week[0])} - ${f(week[6])}**`
           );
-          await msg.react("1️⃣");
-          await msg.react("2️⃣");
-          await msg.react("3️⃣");
-        }
 
-        console.log(`📅 Training inviato in ${cfg.name}`);
-      } catch (e) {
-        console.error("❌ Training error:", e);
-      }
-    }, { timezone: "Europe/Rome" });
+          for (let i = 0; i < 7; i++) {
+            const msg = await channel.send(
+              `> **__${giorni[i]} ${f(week[i])}__**:\n> 9:00 PM, 10:00 PM, 11:00 PM`
+            );
+            await msg.react("1️⃣");
+            await msg.react("2️⃣");
+            await msg.react("3️⃣");
+          }
+
+          console.log(`📅 Training inviato in ${cfg.name}`);
+        } catch (e) {
+          console.error("❌ Training error:", e);
+        }
+      },
+      { timezone: "Europe/Rome" }
+    );
   });
 });
 
-// 🎫 TICKET
+// ================= TICKET =================
 client.on("channelCreate", async (channel) => {
   try {
     if (channel.type !== ChannelType.GuildText) return;
 
     const cfg = servers[channel.guild.id];
     if (!cfg) return;
-
     if (channel.parentId !== cfg.trialCategoryId) return;
 
     const opener = channel.permissionOverwrites.cache.find(
-      p => p.type === 1 && p.allow.has(PermissionsBitField.Flags.ViewChannel)
+      p =>
+        p.type === 1 &&
+        p.allow.has(PermissionsBitField.Flags.ViewChannel)
     );
     if (!opener) return;
 
@@ -94,10 +120,11 @@ client.on("channelCreate", async (channel) => {
 
     await channel.send(msg);
 
-    console.log(`🎫 Ticket ${cfg.ticketTitle} creato in ${cfg.name}`);
+    console.log(`🎫 Ticket creato in ${cfg.name}`);
   } catch (e) {
     console.error("❌ Ticket error:", e);
   }
 });
 
+// ================= LOGIN =================
 client.login(process.env.TOKEN);
