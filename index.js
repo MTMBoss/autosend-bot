@@ -1,69 +1,31 @@
 require("dotenv").config();
-const {
-  Client,
-  GatewayIntentBits,
-  ChannelType,
-  PermissionsBitField
-} = require("discord.js");
+const { Client, GatewayIntentBits, ChannelType, PermissionsBitField } = require("discord.js");
 const cron = require("node-cron");
-
-/* ==========================
-   🤖 CLIENT
-========================== */
+const SERVERS = require("./config/servers");
 
 const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMembers
-  ]
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers]
 });
-
-/* ==========================
-   ⚙️ CONFIG MULTI-SERVER
-   ✅ ID REALI (CORRETTI)
-========================== */
-
-const CONFIG = {
-  // SERVER 1
-  "1393236722137038918": {
-    STAFF_ROLE_ID: "1420070654140481657",
-    TRIAL_CATEGORY_ID: "1459121470058922101",
-    TRAINING_CHANNEL_ID: "1428766410170957895"
-  },
-
-  // SERVER 2
-  "1467171206166741190": {
-    STAFF_ROLE_ID: "1469037236673708032",
-    TRIAL_CATEGORY_ID: "1467540411173044395",
-    TRAINING_CHANNEL_ID: null // se non ti serve il training qui
-  }
-};
-
-/* ==========================
-   ✅ READY
-========================== */
 
 client.once("clientReady", () => {
   console.log(`✅ Bot online come ${client.user.tag}`);
 
   /* ==========================
      📅 TRAINING SCHEDULE
-     (solo server che hanno
-      TRAINING_CHANNEL_ID)
+     SOLO SERVER CON
+     training.enabled === true
   ========================== */
 
   cron.schedule(
     "0 8 * * 5", // venerdì 08:00 IT
     async () => {
-      console.log("📅 Avvio training schedule");
+      for (const guildId in SERVERS) {
+        const cfg = SERVERS[guildId];
+        if (!cfg.training?.enabled) continue;
 
-      for (const guildId in CONFIG) {
         try {
-          const { TRAINING_CHANNEL_ID } = CONFIG[guildId];
-          if (!TRAINING_CHANNEL_ID) continue;
-
           const channel = await client.channels
-            .fetch(TRAINING_CHANNEL_ID)
+            .fetch(cfg.training.channelId)
             .catch(() => null);
 
           if (!channel) continue;
@@ -78,14 +40,10 @@ client.once("clientReady", () => {
           nextMonday.setDate(today.getDate() + daysUntilNextMonday);
 
           const formatDate = (d) =>
-            `${String(d.getDate()).padStart(2, "0")}/${String(
-              d.getMonth() + 1
-            ).padStart(2, "0")}`;
+            `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
 
           await channel.send(
-            `## **TRAINING SCHEDULE ${formatDate(
-              nextMonday
-            )} - ${formatDate(
+            `## **TRAINING SCHEDULE ${formatDate(nextMonday)} - ${formatDate(
               new Date(nextMonday.getTime() + 6 * 86400000)
             )}**`
           );
@@ -103,7 +61,7 @@ client.once("clientReady", () => {
             await msg.react("3️⃣");
           }
 
-          console.log(`✅ Training inviato in ${channel.guild.name}`);
+          console.log(`📅 Training inviato in ${channel.guild.name}`);
         } catch (err) {
           console.error("❌ Errore training:", err);
         }
@@ -114,67 +72,36 @@ client.once("clientReady", () => {
 });
 
 /* ==========================
-   🎫 TICKET TRIAL
+   🎫 TICKET (TUTTI I SERVER)
 ========================== */
 
 client.on("channelCreate", async (channel) => {
-  try {
-    if (channel.type !== ChannelType.GuildText) return;
+  if (channel.type !== ChannelType.GuildText) return;
 
-    const guildConfig = CONFIG[channel.guild.id];
-    if (!guildConfig) return;
+  const cfg = SERVERS[channel.guild.id];
+  if (!cfg) return;
 
-    if (channel.parentId !== guildConfig.TRIAL_CATEGORY_ID) return;
-    if (!channel.name.toLowerCase().includes("ticket")) return;
+  if (channel.parentId !== cfg.trialCategoryId) return;
+  if (!channel.name.toLowerCase().includes(cfg.triggerWord)) return;
 
-    const openerOverwrite = channel.permissionOverwrites.cache.find(
-      (p) =>
-        p.type === 1 &&
-        p.allow.has(PermissionsBitField.Flags.ViewChannel)
-    );
+  const opener = channel.permissionOverwrites.cache.find(
+    (p) => p.type === 1 && p.allow.has(PermissionsBitField.Flags.ViewChannel)
+  );
+  if (!opener) return;
 
-    if (!openerOverwrite) return;
+  const userId = opener.id;
+  const member = await channel.guild.members.fetch(userId);
 
-    const openerId = openerOverwrite.id;
-    const member = await channel.guild.members.fetch(openerId);
+  const username = member.user.username
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
 
-    const username = member.user.username
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, "");
+  await channel.setName(`${cfg.triggerWord}-${username}`);
 
-    await channel.setName(`ticket-${username}`);
+  const msg = cfg.message.replace("{{USER}}", userId);
+  await channel.send(msg);
 
-    const message = `
-👤 **Utente:** <@${openerId}>
-🛠 **Staff:** <@&${guildConfig.STAFF_ROLE_ID}>
-
-**Compila questo form per richiedere un provino ed entrare nel clan competitive Evergreen**
-
-≫ **Nome:**
-≫ **Età:**
-≫ **Nick e UID:**
-≫ **Da che season giochi?**
-≫ **Disponibile per tornei/allenamenti?**
-≫ **Hai esperienza di tornei?**
-≫ **Elenca i precedenti clan:**
-≫ **Ruolo in game?**
-≫ **Categoria arma utilizzata?**
-≫ **Dichiarare i propri obiettivi:**
-≫ **Quante dita usi?**
-≫ **Con che dispositivo/i giochi?**
-≫ **Quanto siete disponibili?**
-≫ **Screen profilo:**
-`;
-
-    await channel.send(message);
-    console.log(`🎫 Ticket creato in ${channel.guild.name}`);
-  } catch (err) {
-    console.error("❌ Errore ticket:", err);
-  }
+  console.log(`🎫 Ticket creato in ${channel.guild.name}`);
 });
-
-/* ==========================
-   🔑 LOGIN
-========================== */
 
 client.login(process.env.TOKEN);
