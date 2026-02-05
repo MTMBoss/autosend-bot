@@ -1,3 +1,16 @@
+const express = require("express");
+const app = express();
+
+app.get("/", (req, res) => {
+  res.send("Bot online 🚀");
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log("Web server attivo");
+});
+
+
 require("dotenv").config();
 const {
   Client,
@@ -99,5 +112,133 @@ client.on("channelCreate", async (channel) => {
     console.error("❌ Ticket error:", e);
   }
 });
+
+client.login(process.env.TOKEN);
+
+
+
+
+
+
+
+require("dotenv").config();
+const {
+  Client,
+  GatewayIntentBits,
+  ChannelType,
+  PermissionsBitField,
+  SlashCommandBuilder,
+  EmbedBuilder
+} = require("discord.js");
+const fs = require("fs");
+const cron = require("node-cron");
+const servers = require("./config/servers");
+
+const SCRIM_CHANNEL_NAME = "scrim-archive";
+const SCRIM_FILE = "./scrims.json";
+
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers
+  ]
+});
+
+/* ================= READY ================= */
+
+client.once("clientReady", async () => {
+  console.log(`✅ Bot online come ${client.user.tag}`);
+
+  // registra slash command
+  const scrimCommand = new SlashCommandBuilder()
+    .setName("scrim")
+    .setDescription("Gestione scrim")
+    .addSubcommand(sub =>
+      sub
+        .setName("add")
+        .setDescription("Aggiungi una nuova scrim")
+        .addStringOption(o =>
+          o.setName("team").setDescription("Team avversario").setRequired(true)
+        )
+        .addStringOption(o =>
+          o.setName("data").setDescription("Data (es. 4 Febbraio)").setRequired(true)
+        )
+        .addStringOption(o =>
+          o.setName("ora").setDescription("Orario (es. 22:00)").setRequired(true)
+        )
+        .addStringOption(o =>
+          o.setName("risultato").setDescription("Risultato (es. 0-2)").setRequired(true)
+        )
+        .addStringOption(o =>
+          o.setName("note").setDescription("Mappe / Note").setRequired(true)
+        )
+    );
+
+  await client.application.commands.set([scrimCommand]);
+});
+
+/* ================= SCRIM COMMAND ================= */
+
+client.on("interactionCreate", async (interaction) => {
+  if (!interaction.isChatInputCommand()) return;
+  if (interaction.commandName !== "scrim") return;
+
+  if (interaction.options.getSubcommand() === "add") {
+    const team = interaction.options.getString("team");
+    const data = interaction.options.getString("data");
+    const ora = interaction.options.getString("ora");
+    const risultato = interaction.options.getString("risultato");
+    const note = interaction.options.getString("note");
+
+    const guild = interaction.guild;
+
+    const channel = guild.channels.cache.find(
+      c => c.name === SCRIM_CHANNEL_NAME && c.type === ChannelType.GuildText
+    );
+
+    if (!channel) {
+      return interaction.reply({
+        content: `❌ Canale **#${SCRIM_CHANNEL_NAME}** non trovato`,
+        ephemeral: true
+      });
+    }
+
+    const embed = new EmbedBuilder()
+      .setTitle(`EverGreen 🆚 ${team}`)
+      .setColor(0x2ecc71)
+      .addFields(
+        { name: "📅 Data", value: data, inline: true },
+        { name: "⏰ Ora", value: ora, inline: true },
+        { name: "🏆 Risultato", value: risultato, inline: true },
+        { name: "🗺️ Mappe / Note", value: note }
+      )
+      .setFooter({ text: `Inserito da ${interaction.user.username}` })
+      .setTimestamp();
+
+    // salva JSON
+    const scrims = JSON.parse(fs.readFileSync(SCRIM_FILE));
+    scrims.push({
+      team,
+      data,
+      ora,
+      risultato,
+      note,
+      author: interaction.user.id,
+      timestamp: Date.now()
+    });
+    fs.writeFileSync(SCRIM_FILE, JSON.stringify(scrims, null, 2));
+
+    await channel.send({ embeds: [embed] });
+
+    await interaction.reply({
+      content: "✅ Scrim archiviata correttamente",
+      ephemeral: true
+    });
+
+    console.log(`📊 Scrim vs ${team} salvata`);
+  }
+});
+
+/* ================= LOGIN ================= */
 
 client.login(process.env.TOKEN);
