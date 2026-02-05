@@ -7,6 +7,10 @@ const {
 } = require("discord.js");
 const cron = require("node-cron");
 
+/* ==========================
+   🤖 CLIENT
+========================== */
+
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -15,24 +19,28 @@ const client = new Client({
 });
 
 /* ==========================
-   ⚙️ CONFIG PER SERVER
+   ⚙️ CONFIG MULTI-SERVER
+   ✅ ID REALI (CORRETTI)
 ========================== */
 
 const CONFIG = {
-  "SERVER_ID_1": {
+  // SERVER 1
+  "1393236722137038918": {
     STAFF_ROLE_ID: "1420070654140481657",
     TRIAL_CATEGORY_ID: "1459121470058922101",
     TRAINING_CHANNEL_ID: "1428766410170957895"
   },
-  "SERVER_ID_2": {
-    STAFF_ROLE_ID: "557628352828014614",
+
+  // SERVER 2
+  "1467171206166741190": {
+    STAFF_ROLE_ID: "1469037236673708032",
     TRIAL_CATEGORY_ID: "1467540411173044395",
-    TRAINING_CHANNEL_ID: "INSERISCI_ID_CHANNEL"
+    TRAINING_CHANNEL_ID: null // se non ti serve il training qui
   }
 };
 
 /* ==========================
-   🤖 BOT READY
+   ✅ READY
 ========================== */
 
 client.once("clientReady", () => {
@@ -40,38 +48,34 @@ client.once("clientReady", () => {
 
   /* ==========================
      📅 TRAINING SCHEDULE
+     (solo server che hanno
+      TRAINING_CHANNEL_ID)
   ========================== */
 
-  // OGNI VENERDÌ alle 8:00 (ora italiana)
   cron.schedule(
-    "0 8 * * 5",
+    "0 8 * * 5", // venerdì 08:00 IT
     async () => {
-      try {
-        console.log("📅 Invio training schedule");
+      console.log("📅 Avvio training schedule");
 
-        for (const guildId in CONFIG) {
+      for (const guildId in CONFIG) {
+        try {
           const { TRAINING_CHANNEL_ID } = CONFIG[guildId];
-
           if (!TRAINING_CHANNEL_ID) continue;
 
-          const channel = await client.channels.fetch(TRAINING_CHANNEL_ID).catch(() => null);
+          const channel = await client.channels
+            .fetch(TRAINING_CHANNEL_ID)
+            .catch(() => null);
+
           if (!channel) continue;
 
           const giorni = ["LUN", "MAR", "MER", "GIO", "VEN", "SAB", "DOM"];
           const today = new Date();
 
-          const day = today.getDay(); // 0 = dom
+          const day = today.getDay();
           const daysUntilNextMonday = ((8 - day) % 7) + 7;
 
           const nextMonday = new Date(today);
           nextMonday.setDate(today.getDate() + daysUntilNextMonday);
-
-          const weekDates = [];
-          for (let i = 0; i < 7; i++) {
-            const d = new Date(nextMonday);
-            d.setDate(nextMonday.getDate() + i);
-            weekDates.push(d);
-          }
 
           const formatDate = (d) =>
             `${String(d.getDate()).padStart(2, "0")}/${String(
@@ -80,15 +84,18 @@ client.once("clientReady", () => {
 
           await channel.send(
             `## **TRAINING SCHEDULE ${formatDate(
-              weekDates[0]
-            )} - ${formatDate(weekDates[6])}**`
+              nextMonday
+            )} - ${formatDate(
+              new Date(nextMonday.getTime() + 6 * 86400000)
+            )}**`
           );
 
           for (let i = 0; i < 7; i++) {
+            const d = new Date(nextMonday);
+            d.setDate(nextMonday.getDate() + i);
+
             const msg = await channel.send(
-              `> **__${giorni[i]} ${formatDate(
-                weekDates[i]
-              )}__**:\n> 9:00 PM, 10:00 PM, 11:00 PM`
+              `> **__${giorni[i]} ${formatDate(d)}__**:\n> 9:00 PM, 10:00 PM, 11:00 PM`
             );
 
             await msg.react("1️⃣");
@@ -96,15 +103,13 @@ client.once("clientReady", () => {
             await msg.react("3️⃣");
           }
 
-          console.log(`✅ Training schedule inviato in ${channel.guild.name}`);
+          console.log(`✅ Training inviato in ${channel.guild.name}`);
+        } catch (err) {
+          console.error("❌ Errore training:", err);
         }
-      } catch (err) {
-        console.error("❌ Errore training schedule:", err);
       }
     },
-    {
-      timezone: "Europe/Rome"
-    }
+    { timezone: "Europe/Rome" }
   );
 });
 
@@ -162,7 +167,7 @@ client.on("channelCreate", async (channel) => {
 `;
 
     await channel.send(message);
-    console.log(`🎫 Ticket trial creato in ${channel.guild.name}`);
+    console.log(`🎫 Ticket creato in ${channel.guild.name}`);
   } catch (err) {
     console.error("❌ Errore ticket:", err);
   }
