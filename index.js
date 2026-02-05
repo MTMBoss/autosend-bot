@@ -14,74 +14,90 @@ const client = new Client({
   ]
 });
 
-/* ===== CONFIG ===== */
+/* ==========================
+   ⚙️ CONFIG PER SERVER
+========================== */
 
-const STAFF_ROLE_ID = "1420070654140481657";
-const TRIAL_CATEGORY_ID = "1459121470058922101";
-const TRAINING_CHANNEL_ID = "1428766410170957895";
+const CONFIG = {
+  "SERVER_ID_1": {
+    STAFF_ROLE_ID: "1420070654140481657",
+    TRIAL_CATEGORY_ID: "1459121470058922101",
+    TRAINING_CHANNEL_ID: "1428766410170957895"
+  },
+  "SERVER_ID_2": {
+    STAFF_ROLE_ID: "557628352828014614",
+    TRIAL_CATEGORY_ID: "1467540411173044395",
+    TRAINING_CHANNEL_ID: "INSERISCI_ID_CHANNEL"
+  }
+};
 
-/* ================== */
+/* ==========================
+   🤖 BOT READY
+========================== */
 
 client.once("clientReady", () => {
   console.log(`✅ Bot online come ${client.user.tag}`);
 
-  /* ===========================
+  /* ==========================
      📅 TRAINING SCHEDULE
-  =========================== */
+  ========================== */
 
-  // OGNI LUNEDÌ alle 12:20 (ora italiana)
+  // OGNI VENERDÌ alle 8:00 (ora italiana)
   cron.schedule(
-    "0 8 * * 1",
+    "0 8 * * 5",
     async () => {
       try {
         console.log("📅 Invio training schedule");
 
-        const channel = await client.channels.fetch(TRAINING_CHANNEL_ID);
-        if (!channel) return;
+        for (const guildId in CONFIG) {
+          const { TRAINING_CHANNEL_ID } = CONFIG[guildId];
 
-        const giorni = ["LUN", "MAR", "MER", "GIO", "VEN", "SAB", "DOM"];
-        const today = new Date();
+          if (!TRAINING_CHANNEL_ID) continue;
 
-        // calcola il lunedì della settimana SUCCESSIVA
-        const day = today.getDay(); // 0=dom
-        const daysUntilNextMonday = ((8 - day) % 7) + 7;
+          const channel = await client.channels.fetch(TRAINING_CHANNEL_ID).catch(() => null);
+          if (!channel) continue;
 
-        const nextMonday = new Date(today);
-        nextMonday.setDate(today.getDate() + daysUntilNextMonday);
+          const giorni = ["LUN", "MAR", "MER", "GIO", "VEN", "SAB", "DOM"];
+          const today = new Date();
 
-        const weekDates = [];
-        for (let i = 0; i < 7; i++) {
-          const d = new Date(nextMonday);
-          d.setDate(nextMonday.getDate() + i);
-          weekDates.push(d);
-        }
+          const day = today.getDay(); // 0 = dom
+          const daysUntilNextMonday = ((8 - day) % 7) + 7;
 
-        const formatDate = (d) =>
-          `${String(d.getDate()).padStart(2, "0")}/${String(
-            d.getMonth() + 1
-          ).padStart(2, "0")}`;
+          const nextMonday = new Date(today);
+          nextMonday.setDate(today.getDate() + daysUntilNextMonday);
 
-        // titolo
-        await channel.send(
-          `## **TRAINING SCHEDULE ${formatDate(
-            weekDates[0]
-          )} - ${formatDate(weekDates[6])}**`
-        );
+          const weekDates = [];
+          for (let i = 0; i < 7; i++) {
+            const d = new Date(nextMonday);
+            d.setDate(nextMonday.getDate() + i);
+            weekDates.push(d);
+          }
 
-        // 7 messaggi + reazioni
-        for (let i = 0; i < 7; i++) {
-          const msg = await channel.send(
-            `> **__${giorni[i]} ${formatDate(
-              weekDates[i]
-            )}__**:\n> 9:00 PM, 10:00 PM, 11:00 PM`
+          const formatDate = (d) =>
+            `${String(d.getDate()).padStart(2, "0")}/${String(
+              d.getMonth() + 1
+            ).padStart(2, "0")}`;
+
+          await channel.send(
+            `## **TRAINING SCHEDULE ${formatDate(
+              weekDates[0]
+            )} - ${formatDate(weekDates[6])}**`
           );
 
-          await msg.react("1️⃣");
-          await msg.react("2️⃣");
-          await msg.react("3️⃣");
-        }
+          for (let i = 0; i < 7; i++) {
+            const msg = await channel.send(
+              `> **__${giorni[i]} ${formatDate(
+                weekDates[i]
+              )}__**:\n> 9:00 PM, 10:00 PM, 11:00 PM`
+            );
 
-        console.log("✅ Training schedule inviato con reazioni");
+            await msg.react("1️⃣");
+            await msg.react("2️⃣");
+            await msg.react("3️⃣");
+          }
+
+          console.log(`✅ Training schedule inviato in ${channel.guild.name}`);
+        }
       } catch (err) {
         console.error("❌ Errore training schedule:", err);
       }
@@ -92,14 +108,18 @@ client.once("clientReady", () => {
   );
 });
 
-/* ===========================
+/* ==========================
    🎫 TICKET TRIAL
-=========================== */
+========================== */
 
 client.on("channelCreate", async (channel) => {
   try {
     if (channel.type !== ChannelType.GuildText) return;
-    if (channel.parentId !== TRIAL_CATEGORY_ID) return;
+
+    const guildConfig = CONFIG[channel.guild.id];
+    if (!guildConfig) return;
+
+    if (channel.parentId !== guildConfig.TRIAL_CATEGORY_ID) return;
     if (!channel.name.toLowerCase().includes("ticket")) return;
 
     const openerOverwrite = channel.permissionOverwrites.cache.find(
@@ -121,7 +141,7 @@ client.on("channelCreate", async (channel) => {
 
     const message = `
 👤 **Utente:** <@${openerId}>
-🛠 **Staff:** <@&${STAFF_ROLE_ID}>
+🛠 **Staff:** <@&${guildConfig.STAFF_ROLE_ID}>
 
 **Compila questo form per richiedere un provino ed entrare nel clan competitive Evergreen**
 
@@ -142,10 +162,14 @@ client.on("channelCreate", async (channel) => {
 `;
 
     await channel.send(message);
-    console.log("🎫 Ticket trial creato e messaggio inviato");
+    console.log(`🎫 Ticket trial creato in ${channel.guild.name}`);
   } catch (err) {
     console.error("❌ Errore ticket:", err);
   }
 });
+
+/* ==========================
+   🔑 LOGIN
+========================== */
 
 client.login(process.env.TOKEN);
