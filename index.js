@@ -41,7 +41,7 @@ client.once("clientReady", () => {
     if (!cfg.sendTraining) return;
 
     cron.schedule(
-      "0 8 * * 5", // ogni venerdì alle 08:00
+      "30 19 * * 5", // ogni venerdì alle 08:00
       async () => {
         try {
           const guild = await client.guilds.fetch(guildId);
