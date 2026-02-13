@@ -37,12 +37,11 @@ const client = new Client({
 client.once("clientReady", () => {
   console.log(`✅ Bot online come ${client.user.tag}`);
 
-  // TRAINING → solo server che lo richiedono
   Object.entries(servers).forEach(([guildId, cfg]) => {
     if (!cfg.sendTraining) return;
 
     cron.schedule(
-      "0 8 * * 5",
+      "0 8 * * 5", // ogni venerdì alle 08:00
       async () => {
         try {
           const guild = await client.guilds.fetch(guildId);
@@ -50,12 +49,18 @@ client.once("clientReady", () => {
           if (!channel) return;
 
           const giorni = ["LUN", "MAR", "MER", "GIO", "VEN", "SAB", "DOM"];
+
           const today = new Date();
-          const day = today.getDay();
-          const daysUntilNextMonday = ((8 - day) % 7) + 7;
+          const day = today.getDay(); // 0 = DOM, 1 = LUN ...
+
+          // Calcolo corretto del prossimo lunedì
+          // Se oggi è venerdì (5), mancano 3 giorni
+          let daysUntilNextMonday = (8 - day) % 7;
+          if (daysUntilNextMonday === 0) daysUntilNextMonday = 7;
 
           const nextMonday = new Date(today);
           nextMonday.setDate(today.getDate() + daysUntilNextMonday);
+          nextMonday.setHours(0, 0, 0, 0);
 
           const week = Array.from({ length: 7 }, (_, i) => {
             const d = new Date(nextMonday);
@@ -63,18 +68,22 @@ client.once("clientReady", () => {
             return d;
           });
 
-          const f = d =>
+          const formatDate = d =>
             `${String(d.getDate()).padStart(2, "0")}/${String(
               d.getMonth() + 1
             ).padStart(2, "0")}`;
 
           await channel.send(
-            `## **TRAINING SCHEDULE ${f(week[0])} - ${f(week[6])}**`
+            `## **TRAINING SCHEDULE ${formatDate(week[0])} - ${formatDate(
+              week[6]
+            )}**`
           );
 
           for (let i = 0; i < 7; i++) {
             const msg = await channel.send(
-              `> **__${giorni[i]} ${f(week[i])}__**:\n> 9:00 PM, 10:00 PM, 11:00 PM`
+              `> **__${giorni[i]} ${formatDate(
+                week[i]
+              )}__**:\n> 9:00 PM, 10:00 PM, 11:00 PM`
             );
             await msg.react("1️⃣");
             await msg.react("2️⃣");
